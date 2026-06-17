@@ -19,8 +19,12 @@
 **/RTE/
 
 # VSCode 运行时文件（保留 c_cpp_properties.json 配置即可）
-**/.vscode/keil-assistant.log
-**/.vscode/uv4.log*
+*.log
+*.lock
+# 但保留 Keil 工程必须的 .uvprojx .uvoptx .uvguix
+!ball/MDK-ARM/*.uvprojx
+!ball/MDK-ARM/*.uvoptx
+!ball/MDK-ARM/*.uvguix.*
 
 # CubeMX 内部元数据文件（非项目核心配置）
 .mxproject
