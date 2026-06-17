@@ -853,10 +853,10 @@ ARM Macro Assembler    Page 14
 er/Inc/Legacy -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlew
 ares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I../Middlewares/Third_Party/Fre
 eRTOS/Source/portable/RVDS/ARM_CM4F -I../Drivers/CMSIS/Device/ST/STM32F4xx/Incl
-ude -I../Drivers/CMSIS/Include -I.\RTE\_ball -ID:\Keil_v5\Packs\ARM\CMSIS\5.9.0
-\CMSIS\Core\Include --predefine="__UVISION_VERSION SETA 537" --predefine="_RTE_
- SETA 1" --predefine="STM32F407xx SETA 1" --predefine="_RTE_ SETA 1" --list=sta
-rtup_stm32f407xx.lst startup_stm32f407xx.s
+ude -I../Drivers/CMSIS/Include -I..\Hardware -I.\RTE\_ball -ID:\Keil_v5\Packs\A
+RM\CMSIS\5.9.0\CMSIS\Core\Include --predefine="__UVISION_VERSION SETA 537" --pr
+edefine="_RTE_ SETA 1" --predefine="STM32F407xx SETA 1" --predefine="_RTE_ SETA
+ 1" --list=startup_stm32f407xx.lst startup_stm32f407xx.s
 
 
 

@@ -46,7 +46,7 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 
-/* 视觉数据消息队列句柄定义（extern 声明在 main.h） */
+/* 视觉数据消息队列句柄定义（extern 声明在 vision.h） */
 osMessageQueueId_t VisionQueueHandle;
 const osMessageQueueAttr_t VisionQueue_attributes = {
   .name = "VisionQueue"
@@ -81,6 +81,11 @@ const osThreadAttr_t CommandTask_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityHigh,
 };
+/* Definitions for CmdMutex */
+osMutexId_t CmdMutexHandle;
+const osMutexAttr_t CmdMutex_attributes = {
+  .name = "CmdMutex"
+};
 /* Definitions for CtrlBinarySem */
 osSemaphoreId_t CtrlBinarySemHandle;
 const osSemaphoreAttr_t CtrlBinarySem_attributes = {
@@ -108,6 +113,9 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
+  /* Create the mutex(es) */
+  /* creation of CmdMutex */
+  CmdMutexHandle = osMutexNew(&CmdMutex_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */

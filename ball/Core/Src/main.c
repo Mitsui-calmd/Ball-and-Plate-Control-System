@@ -48,10 +48,6 @@
 
 /* USER CODE BEGIN PV */
 
-/* DMA 环形缓冲区 — USART1 IDLE 中断中解析，CIRCULAR 模式自动回绕 */
-uint8_t  dma_rx_buf[DMA_RX_BUF_SIZE];
-uint16_t vision_parse_idx = 0;  /* 上次解析到的环内偏移，用于增量搜索 */
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -172,88 +168,6 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-/* ================================================================ */
-/*  CRC-8 查表（多项式 0x07，初始值 0x00）                         */
-/* ================================================================ */
-static uint8_t Vision_CRC8(const uint8_t *data, uint16_t len)
-{
-  uint8_t crc = 0x00;
-  while (len--)
-  {
-    crc ^= *data++;
-    for (uint8_t i = 0; i < 8; i++)
-      crc = (crc & 0x80) ? (uint8_t)((crc << 1) ^ VISION_CRC8_POLY) : (uint8_t)(crc << 1);
-  }
-  return crc;
-}
-
-/* ================================================================ */
-/*  从环形缓冲区指定位置拷贝一个 float（小端，4 字节）                */
-/* ================================================================ */
-static float Vision_RingBufReadFloat(uint16_t start)
-{
-  union {
-    float   f;
-    uint8_t b[4];
-  } u;
-  u.b[0] = dma_rx_buf[(start + 0) % DMA_RX_BUF_SIZE];
-  u.b[1] = dma_rx_buf[(start + 1) % DMA_RX_BUF_SIZE];
-  u.b[2] = dma_rx_buf[(start + 2) % DMA_RX_BUF_SIZE];
-  u.b[3] = dma_rx_buf[(start + 3) % DMA_RX_BUF_SIZE];
-  return u.f;
-}
-
-/* ================================================================ */
-/*  帧解析：buf 指向帧头 0xA5 之后的 17 字节，校验+填充              */
-/*  调用方保证 buf 包含完整 17 字节（IDLE 中断中已验证）             */
-/* ================================================================ */
-void Vision_ParseFrame(uint8_t *buf, uint16_t len, VisionData_t *out)
-{
-  (void)len;  /* 调用方保证 len >= 17 */
-
-  /* CRC8 校验: 对 buf[0]~buf[15]（nx+ny+vx+vy 共 16 字节）计算 */
-  uint8_t crc_calc = Vision_CRC8(buf, 16);
-  uint8_t crc_recv = buf[16];
-
-  if (crc_calc == crc_recv)
-  {
-    /* 小端解包 */
-    union { float f; uint8_t b[4]; } tmp;
-
-    tmp.b[0] = buf[0];  tmp.b[1] = buf[1];  tmp.b[2] = buf[2];  tmp.b[3] = buf[3];
-    out->nx = tmp.f;
-
-    tmp.b[0] = buf[4];  tmp.b[1] = buf[5];  tmp.b[2] = buf[6];  tmp.b[3] = buf[7];
-    out->ny = tmp.f;
-
-    tmp.b[0] = buf[8];  tmp.b[1] = buf[9];  tmp.b[2] = buf[10]; tmp.b[3] = buf[11];
-    out->vx = tmp.f;
-
-    tmp.b[0] = buf[12]; tmp.b[1] = buf[13]; tmp.b[2] = buf[14]; tmp.b[3] = buf[15];
-    out->vy = tmp.f;
-
-    out->timestamp = HAL_GetTick();
-  }
-  else
-  {
-    /* 校验失败 — 标记为无效帧 */
-    out->nx = out->ny = out->vx = out->vy = 0.0f;
-    out->timestamp = 0;
-  }
-}
-
-/* ================================================================ */
-/*  启动 USART1 DMA 环形接收 + IDLE 中断                            */
-/* ================================================================ */
-void Vision_StartDMA(void)
-{
-  /* 使能 USART1 IDLE 中断 */
-  __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);
-
-  /* 启动 DMA 环形接收，数据持续写入 dma_rx_buf, CIRCULAR 模式自动回绕 */
-  HAL_UART_Receive_DMA(&huart1, dma_rx_buf, DMA_RX_BUF_SIZE);
-}
 
 /* USER CODE END 4 */
 

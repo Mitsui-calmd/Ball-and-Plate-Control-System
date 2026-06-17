@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "cmsis_os.h"  /* 提供 osMessageQueuePut 等 FromISR 函数，用于 USART1 IDLE 中断写入 VisionQueue */
+#include "vision.h"    /* VisionData_t、dma_rx_buf、Vision_ParseFrame、VisionQueueHandle */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -240,7 +241,7 @@ void USART1_IRQHandler(void)
     __HAL_UART_CLEAR_IDLEFLAG(&huart1);  /* 必须先清标志，否则会反复进中断 */
 
     /* 当前 DMA 剩余字节数 → 推算出环形缓冲区中已写入位置 */
-    uint16_t cur_idx = DMA_RX_BUF_SIZE - __HAL_DMA_GET_COUNTER(hdma_usart1_rx);
+    uint16_t cur_idx = DMA_RX_BUF_SIZE - __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
     uint8_t  tmp_buf[17];       /* 帧头之后的 17 字节临时缓冲区 */
     VisionData_t data;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;

@@ -45,6 +45,8 @@ void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 
+HAL_StatusTypeDef usart_SendCmd(UART_HandleTypeDef *huart, uint8_t *data, uint16_t len); /* USART DMA 非阻塞发送 */
+
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus
