@@ -5,9 +5,8 @@
 
 /* ——— 视觉通信协议 ——— */
 #define VISION_FRAME_HEADER  0xA5  /* 帧头标识 */
-#define VISION_FRAME_SIZE    18    /* 一帧总字节：帧头(1) + nx(4) + ny(4) + vx(4) + vy(4) + CRC8(1) */
-#define DMA_RX_BUF_SIZE      128   /* DMA 环形缓冲区大小，约可缓冲 ~7 帧 */
-#define VISION_CRC8_POLY     0x07  /* CRC-8-ATM 多项式 */
+#define VISION_FRAME_SIZE    18    /* 一帧总字节：帧头(1) + nx(4) + ny(4) + vx(4) + vy(4) + 包尾(1) */
+#define DMA_RX_BUF_SIZE      256   /* DMA 环形缓冲区大小，约可缓冲 ~14 帧 */
 
 /* ——— 视觉数据结构体 ——— */
 typedef struct {

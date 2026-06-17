@@ -8,31 +8,13 @@ uint8_t  dma_rx_buf[DMA_RX_BUF_SIZE];  /* DMA 环形缓冲区 */
 uint16_t vision_parse_idx = 0;         /* 上次解析到的环内偏移 */
 
 /* ================================================================ */
-/*  CRC-8（多项式 0x07，初始值 0x00）                                */
-/* ================================================================ */
-static uint8_t Vision_CRC8(const uint8_t *data, uint16_t len)
-{
-    uint8_t crc = 0x00;
-    while (len--)
-    {
-        crc ^= *data++;
-        for (uint8_t i = 0; i < 8; i++)
-            crc = (crc & 0x80) ? (uint8_t)((crc << 1) ^ VISION_CRC8_POLY) : (uint8_t)(crc << 1);
-    }
-    return crc;
-}
-
-/* ================================================================ */
-/*  帧解析：buf 指向帧头 0xA5 之后的 17 字节，CRC 校验 + 小端解包   */
+/*  帧解析：buf 指向帧头 0xA5 之后的 17 字节，尾字节 0x8A 则解包    */
 /* ================================================================ */
 void Vision_ParseFrame(uint8_t *buf, uint16_t len, VisionData_t *out)
 {
-    (void)len;  /* 调用方保证 >= 17 */
+    (void)len;
 
-    uint8_t crc_calc = Vision_CRC8(buf, 16);
-    uint8_t crc_recv = buf[16];
-
-    if (crc_calc == crc_recv)
+    if (buf[16] == 0x8A)
     {
         union { float f; uint8_t b[4]; } tmp;
 

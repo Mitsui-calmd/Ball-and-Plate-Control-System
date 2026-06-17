@@ -231,74 +231,41 @@ void USART1_IRQHandler(void)
 {
   /* USER CODE BEGIN USART1_IRQn 0 */
 
-  /* USER CODE END USART1_IRQn 0 */
-  HAL_UART_IRQHandler(&huart1);
-  /* USER CODE BEGIN USART1_IRQn 1 */
-
-  /* IDLE 中断：K230 发完一帧 18 字节后 RX 线空闲触发 */
   if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE))
   {
-    __HAL_UART_CLEAR_IDLEFLAG(&huart1);  /* 必须先清标志，否则会反复进中断 */
+    __HAL_UART_CLEAR_IDLEFLAG(&huart1);
 
-    /* 当前 DMA 剩余字节数 → 推算出环形缓冲区中已写入位置 */
-    uint16_t cur_idx = DMA_RX_BUF_SIZE - __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
-    uint8_t  tmp_buf[17];       /* 帧头之后的 17 字节临时缓冲区 */
+    uint16_t ndtr = __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
+    uint16_t cur_idx = (ndtr == 0) ? 0 : (DMA_RX_BUF_SIZE - ndtr);
     VisionData_t data;
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    uint16_t safety = 0;  /* 防止死循环 */
 
-    /* 从上次解析位置开始，遍历环形缓冲区中所有新数据，搜索帧头 */
-    while (vision_parse_idx != cur_idx)
+    while (vision_parse_idx != cur_idx && safety < DMA_RX_BUF_SIZE)
     {
-      /* 找到帧头 0xA5 */
+      safety++;
       if (dma_rx_buf[vision_parse_idx] == VISION_FRAME_HEADER)
       {
         uint16_t data_start = (vision_parse_idx + 1) % DMA_RX_BUF_SIZE;
 
-        /* 检查 17 字节数据是否完整（处理环形回绕） */
-        uint8_t complete = 0;
         if (data_start + 17 <= DMA_RX_BUF_SIZE)
         {
-          /* 数据连续，未跨边界 */
           Vision_ParseFrame(&dma_rx_buf[data_start], 17, &data);
-          complete = 1;
-        }
-        else
-        {
-          /* 数据横跨环形缓冲区尾部→头部 */
-          uint16_t part1_len = DMA_RX_BUF_SIZE - data_start;  /* 尾部长度 */
-          uint16_t part2_len = 17 - part1_len;                 /* 头部长度 */
-
-          if ((vision_parse_idx < cur_idx) || (cur_idx <= data_start))
-          {
-            /* 确保跨边界的两段数据均已收到 */
-            for (uint16_t i = 0; i < part1_len; i++)
-              tmp_buf[i] = dma_rx_buf[data_start + i];
-            for (uint16_t i = 0; i < part2_len; i++)
-              tmp_buf[part1_len + i] = dma_rx_buf[i];
-
-            Vision_ParseFrame(tmp_buf, 17, &data);
-            complete = 1;
-          }
+          if (data.timestamp != 0)
+            osMessageQueuePut(VisionQueueHandle, &data, 0, 0);
         }
 
-        if (complete && data.timestamp != 0)
-        {
-          /* 校验通过，写入 VisionQueue（overwrite 模式直接覆盖旧数据） */
-          osMessageQueuePut(VisionQueueHandle, &data, 0, 0);
-        }
-
-        /* 跳过这一帧（18 字节），继续搜索下一帧头 */
         vision_parse_idx = (vision_parse_idx + VISION_FRAME_SIZE) % DMA_RX_BUF_SIZE;
       }
       else
       {
-        /* 非帧头，前进一字节 */
         vision_parse_idx = (vision_parse_idx + 1) % DMA_RX_BUF_SIZE;
       }
     }
-
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
   }
+
+  /* USER CODE END USART1_IRQn 0 */
+  HAL_UART_IRQHandler(&huart1);
+  /* USER CODE BEGIN USART1_IRQn 1 */
 
   /* USER CODE END USART1_IRQn 1 */
 }

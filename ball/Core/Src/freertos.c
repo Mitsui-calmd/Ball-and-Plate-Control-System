@@ -174,10 +174,7 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
-	osDelay(500);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
-  osDelay(500);
+  osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
 }
@@ -210,10 +207,14 @@ void StartPIDTask(void *argument)
 void StartVisionTask(void *argument)
 {
   /* USER CODE BEGIN StartVisionTask */
-  /* Infinite loop */
+  VisionData_t data;
+
   for(;;)
   {
-  osDelay(1);
+    if (osMessageQueueGet(VisionQueueHandle, &data, NULL, 10) == osOK)
+    {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2);
+    }
   }
   /* USER CODE END StartVisionTask */
 }
