@@ -1,0 +1,31 @@
+# ===================================================================
+# Keil MDK 编译产物 — 二进制/中间文件，每次编译都会重新生成
+# ===================================================================
+*.o
+*.crf
+*.d
+*.dep
+*.htm
+*.lnp
+*.map
+*.axf
+*.hex
+*.elf
+*.bin
+*.iex
+
+# Keil 调试配置 & RTE 自动生成
+**/DebugConfig/
+**/RTE/
+
+# VSCode 运行时文件（保留 c_cpp_properties.json 配置即可）
+**/.vscode/keil-assistant.log
+**/.vscode/uv4.log*
+
+# CubeMX 内部元数据文件（非项目核心配置）
+.mxproject
+
+# 通用
+*.bak
+*.tmp
+*.orig
