@@ -30,6 +30,7 @@
 .mxproject
 
 # 通用
+node_modules/
 *.bak
 *.tmp
 *.orig
