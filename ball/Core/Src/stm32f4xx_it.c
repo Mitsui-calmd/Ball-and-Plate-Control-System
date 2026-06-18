@@ -22,8 +22,8 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "cmsis_os.h"  /* 提供 osMessageQueuePut 等 FromISR 函数，用于 USART1 IDLE 中断写入 VisionQueue */
-#include "vision.h"    /* VisionData_t、dma_rx_buf、Vision_ParseFrame、VisionQueueHandle */
+#include "cmsis_os.h"  /* osSemaphoreRelease — USART1 IDLE 中断唤醒 VisionTask */
+#include "vision.h"    /* dma_rx_buf、vision_cur_idx、VisionBinarySemHandle */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -207,6 +207,8 @@ void TIM2_IRQHandler(void)
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
 
+  osSemaphoreRelease(CtrlBinarySemHandle);  /* 每 10ms 通知 PIDTask */
+
   /* USER CODE END TIM2_IRQn 1 */
 }
 
@@ -236,31 +238,9 @@ void USART1_IRQHandler(void)
     __HAL_UART_CLEAR_IDLEFLAG(&huart1);
 
     uint16_t ndtr = __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
-    uint16_t cur_idx = (ndtr == 0) ? 0 : (DMA_RX_BUF_SIZE - ndtr);
-    VisionData_t data;
-    uint16_t safety = 0;  /* 防止死循环 */
+    vision_cur_idx = (ndtr == 0) ? 0 : (DMA_RX_BUF_SIZE - ndtr);
 
-    while (vision_parse_idx != cur_idx && safety < DMA_RX_BUF_SIZE)
-    {
-      safety++;
-      if (dma_rx_buf[vision_parse_idx] == VISION_FRAME_HEADER)
-      {
-        uint16_t data_start = (vision_parse_idx + 1) % DMA_RX_BUF_SIZE;
-
-        if (data_start + 17 <= DMA_RX_BUF_SIZE)
-        {
-          Vision_ParseFrame(&dma_rx_buf[data_start], 17, &data);
-          if (data.timestamp != 0)
-            osMessageQueuePut(VisionQueueHandle, &data, 0, 0);
-        }
-
-        vision_parse_idx = (vision_parse_idx + VISION_FRAME_SIZE) % DMA_RX_BUF_SIZE;
-      }
-      else
-      {
-        vision_parse_idx = (vision_parse_idx + 1) % DMA_RX_BUF_SIZE;
-      }
-    }
+    osSemaphoreRelease(VisionBinarySemHandle);
   }
 
   /* USER CODE END USART1_IRQn 0 */

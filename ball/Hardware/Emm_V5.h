@@ -17,7 +17,15 @@
 
 /* 电机地址 — 共用一个 USART2，通过地址字节区分 */
 #define MOTOR_X_ADDR  0x01  /* X 轴步进电机 */
-#define MOTOR_Y_ADDR  0x02  /* Y 轴步进电机 */ 
+#define MOTOR_Y_ADDR  0x02  /* Y 轴步进电机 */
+
+/* PIDTask → CommandTask 电机指令 */
+typedef struct {
+    uint8_t  dir_x;
+    uint8_t  dir_y;
+    uint32_t clk_x;
+    uint32_t clk_y;
+} MotorCmd_t; 
 
 typedef enum {
 	S_VER   = 0,			/* 读取固件版本和对应的硬件版本 */

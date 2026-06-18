@@ -2,6 +2,7 @@
 #define __VISION_H__
 
 #include "cmsis_os.h"  /* osMessageQueueId_t, osMessageQueuePut 等 */
+#include "queue.h"     /* QueueHandle_t，FreeRTOS 队列 API */
 
 /* ——— 视觉通信协议 ——— */
 #define VISION_FRAME_HEADER  0xA5  /* 帧头标识 */
@@ -18,10 +19,13 @@ typedef struct {
 } VisionData_t;
 
 /* ——— 共享变量 ——— */
-extern osMessageQueueId_t VisionQueueHandle;            /* 视觉数据消息队列句柄 */
-extern osMutexId_t        CmdMutexHandle;               /* USART2 发送互斥锁句柄 */
+extern QueueHandle_t      VisionQueue;                  /* 视觉数据队列，长度3，FreeRTOS原生API */
+extern osSemaphoreId_t    CtrlBinarySemHandle;          /* TIM2 → PIDTask 同步信号量（当前闲置） */
 extern uint8_t            dma_rx_buf[DMA_RX_BUF_SIZE];  /* DMA 环形缓冲区 */
 extern uint16_t           vision_parse_idx;             /* 上次解析到的环内位置 */
+extern uint16_t           vision_cur_idx;               /* ISR 写入的 DMA 当前接收位置 */
+extern osSemaphoreId_t    VisionBinarySemHandle;        /* ISR→VisionTask 通知信号量 */
+extern osThreadId_t        CommandTaskHandle;            /* CommandTask 句柄，PIDTask 用 osThreadFlagsSet 唤醒 */
 
 /* ——— 函数声明 ——— */
 void Vision_StartDMA(void);                                              /* 启动 USART1 DMA 环形接收 + IDLE 中断 */

@@ -16,7 +16,7 @@
   */
 void Emm_V5_Reset_CurPos_To_Zero(uint8_t addr)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
   
   // 装载命令
   cmd[0] =  addr;                       // 地址
@@ -35,7 +35,7 @@ void Emm_V5_Reset_CurPos_To_Zero(uint8_t addr)
   */
 void Emm_V5_Reset_Clog_Pro(uint8_t addr)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
   
   // 装载命令
   cmd[0] =  addr;                       // 地址
@@ -56,7 +56,7 @@ void Emm_V5_Reset_Clog_Pro(uint8_t addr)
 void Emm_V5_Read_Sys_Params(uint8_t addr, SysParams_t s)
 {
   uint8_t i = 0;
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
   
   // 装载命令
   cmd[i] = addr; ++i;                   // 地址
@@ -95,7 +95,7 @@ void Emm_V5_Read_Sys_Params(uint8_t addr, SysParams_t s)
   */
 void Emm_V5_Modify_Ctrl_Mode(uint8_t addr, bool svF, uint8_t ctrl_mode)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
   
   // 装载命令
   cmd[0] =  addr;                       // 地址
@@ -118,7 +118,7 @@ void Emm_V5_Modify_Ctrl_Mode(uint8_t addr, bool svF, uint8_t ctrl_mode)
   */
 void Emm_V5_En_Control(uint8_t addr, bool state, bool snF)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
   
   // 装载命令
   cmd[0] =  addr;                       // 地址
@@ -143,7 +143,7 @@ void Emm_V5_En_Control(uint8_t addr, bool state, bool snF)
   */
 void Emm_V5_Vel_Control(uint8_t addr, uint8_t dir, uint16_t vel, uint8_t acc, bool snF)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
 
   // 装载命令
   cmd[0] =  addr;                       // 地址
@@ -172,7 +172,7 @@ void Emm_V5_Vel_Control(uint8_t addr, uint8_t dir, uint16_t vel, uint8_t acc, bo
   */
 void Emm_V5_Pos_Control(uint8_t addr, uint8_t dir, uint16_t vel, uint8_t acc, uint32_t clk, bool raF, bool snF)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
 
   // 装载命令
   cmd[0]  =  addr;                      // 地址
@@ -201,7 +201,7 @@ void Emm_V5_Pos_Control(uint8_t addr, uint8_t dir, uint16_t vel, uint8_t acc, ui
   */
 void Emm_V5_Stop_Now(uint8_t addr, bool snF)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
   
   // 装载命令
   cmd[0] =  addr;                       // 地址
@@ -221,7 +221,7 @@ void Emm_V5_Stop_Now(uint8_t addr, bool snF)
   */
 void Emm_V5_Synchronous_motion(uint8_t addr)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
   
   // 装载命令
   cmd[0] =  addr;                       // 地址
@@ -241,7 +241,7 @@ void Emm_V5_Synchronous_motion(uint8_t addr)
   */
 void Emm_V5_Origin_Set_O(uint8_t addr, bool svF)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
   
   // 装载命令
   cmd[0] =  addr;                       // 地址
@@ -307,7 +307,7 @@ void Emm_V5_Origin_Modify_Params(uint8_t addr, bool svF, uint8_t o_mode, uint8_t
   */
 void Emm_V5_Origin_Trigger_Return(uint8_t addr, uint8_t o_mode, bool snF)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
   
   // 装载命令
   cmd[0] =  addr;                       // 地址
@@ -327,7 +327,7 @@ void Emm_V5_Origin_Trigger_Return(uint8_t addr, uint8_t o_mode, bool snF)
   */
 void Emm_V5_Origin_Interrupt(uint8_t addr)
 {
-  uint8_t cmd[16] = {0};
+  static uint8_t cmd[16] = {0};
   
   // 装载命令
   cmd[0] =  addr;                       // 地址

@@ -25,7 +25,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "Emm_V5.h"  /* 电机控制函数、MOTOR_X/Y_ADDR、ABS 宏 */
+#include "queue.h"    /* FreeRTOS 队列 API：xQueueCreate / xQueueSendToBack / xQueueReceive */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,11 +47,11 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 
-/* 视觉数据消息队列句柄定义（extern 声明在 vision.h） */
-osMessageQueueId_t VisionQueueHandle;
-const osMessageQueueAttr_t VisionQueue_attributes = {
-  .name = "VisionQueue"
-};
+/* 视觉数据队列句柄（FreeRTOS 原生，长度 3，取最新帧时弹旧帧） */
+QueueHandle_t VisionQueue;
+
+/* PIDTask → CommandTask 共享电机指令 */
+MotorCmd_t motor_cmd;
 
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
@@ -72,7 +73,7 @@ osThreadId_t VisionTaskHandle;
 const osThreadAttr_t VisionTask_attributes = {
   .name = "VisionTask",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityAboveNormal,
+  .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for CommandTask */
 osThreadId_t CommandTaskHandle;
@@ -90,6 +91,11 @@ const osMutexAttr_t CmdMutex_attributes = {
 osSemaphoreId_t CtrlBinarySemHandle;
 const osSemaphoreAttr_t CtrlBinarySem_attributes = {
   .name = "CtrlBinarySem"
+};
+/* Definitions for VisionBinarySem */
+osSemaphoreId_t VisionBinarySemHandle;
+const osSemaphoreAttr_t VisionBinarySem_attributes = {
+  .name = "VisionBinarySem"
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -125,6 +131,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of CtrlBinarySem */
   CtrlBinarySemHandle = osSemaphoreNew(1, 1, &CtrlBinarySem_attributes);
 
+  /* creation of VisionBinarySem */
+  VisionBinarySemHandle = osSemaphoreNew(1, 1, &VisionBinarySem_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -134,8 +143,8 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-  /* 视觉数据队列：长度 3，overwrite 模式（ISR 端新数据覆盖旧数据），元素类型 VisionData_t */
-  VisionQueueHandle = osMessageQueueNew(3, sizeof(VisionData_t), &VisionQueue_attributes);
+  /* 视觉数据队列：长度 3，FreeRTOS 原生，手动覆盖旧数据 */
+  VisionQueue = xQueueCreate(3, sizeof(VisionData_t));
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -189,10 +198,37 @@ void StartDefaultTask(void *argument)
 void StartPIDTask(void *argument)
 {
   /* USER CODE BEGIN StartPIDTask */
-  /* Infinite loop */
+  VisionData_t data;
+  const float   kyp  = 500.0f;
+  const float   kxp  = 400.0f;
+  const float   kyd  = 110.0f;
+  const float   kxd  = 80.0f;
+
   for(;;)
   {
-  osDelay(1);
+    /* 阻塞等待视觉数据 */
+    if (xQueueReceive(VisionQueue, &data, portMAX_DELAY) == pdTRUE)
+    {
+      float out_x = kxp * data.nx + kxd * (data.vx);
+      float out_y = kyp * data.ny + kyd * (data.vy);
+
+      int32_t raw_x = (int32_t)out_x;
+      int32_t raw_y = (int32_t)out_y;
+
+      /* 限幅 ±400 */
+      if (raw_x >  400) raw_x =  500;
+      if (raw_x < -400) raw_x = -500;
+      if (raw_y >  400) raw_y =  500;
+      if (raw_y < -400) raw_y = -500;
+
+      /* 填指令结构体 */
+      motor_cmd.dir_x = (raw_x >= 0) ? 1 : 0;  /* X 轴反向 */
+      motor_cmd.clk_x = (uint32_t)ABS(raw_x);
+      motor_cmd.dir_y = (raw_y >= 0) ? 1 : 0;  /* Y 轴反向 */
+      motor_cmd.clk_y = (uint32_t)ABS(raw_y);
+      /* 唤醒 CommandTask 执行电机指令 */
+      xTaskNotifyGive(CommandTaskHandle);
+    }
   }
   /* USER CODE END StartPIDTask */
 }
@@ -208,12 +244,53 @@ void StartVisionTask(void *argument)
 {
   /* USER CODE BEGIN StartVisionTask */
   VisionData_t data;
+  uint16_t    safety;
 
   for(;;)
   {
-    if (osMessageQueueGet(VisionQueueHandle, &data, NULL, 10) == osOK)
+    /* 等待 ISR 唤醒 */
+    osSemaphoreAcquire(VisionBinarySemHandle, osWaitForever);
+
+    safety = 0;
+    while (vision_parse_idx != vision_cur_idx && safety < DMA_RX_BUF_SIZE)
     {
-      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2);
+      safety++;
+      if (dma_rx_buf[vision_parse_idx] == VISION_FRAME_HEADER)
+      {
+        uint16_t data_start = (vision_parse_idx + 1) % DMA_RX_BUF_SIZE;
+
+        if (data_start + 17 <= DMA_RX_BUF_SIZE)
+        {
+          /* 帧在环内连续 */
+          Vision_ParseFrame(&dma_rx_buf[data_start], 17, &data);
+        }
+        else
+        {
+          /* 帧跨环尾，拼两段到临时 buf */
+          uint8_t tmp[17];
+          uint16_t part1 = DMA_RX_BUF_SIZE - data_start;
+          uint16_t part2 = 17 - part1;
+          for (uint16_t i = 0; i < part1; i++) tmp[i]      = dma_rx_buf[data_start + i];
+          for (uint16_t i = 0; i < part2; i++) tmp[part1 + i] = dma_rx_buf[i];
+          Vision_ParseFrame(tmp, 17, &data);
+        }
+
+        if (data.timestamp != 0)
+        {
+          /* 写队列：满了弹最老再写，始终保留最新 3 帧 */
+          if (xQueueSendToBack(VisionQueue, &data, 0) == errQUEUE_FULL) {
+            VisionData_t dummy;
+            xQueueReceive(VisionQueue, &dummy, 0);
+            xQueueSendToBack(VisionQueue, &data, 0);
+          }
+        }
+
+        vision_parse_idx = (vision_parse_idx + VISION_FRAME_SIZE) % DMA_RX_BUF_SIZE;
+      }
+      else
+      {
+        vision_parse_idx = (vision_parse_idx + 1) % DMA_RX_BUF_SIZE;
+      }
     }
   }
   /* USER CODE END StartVisionTask */
@@ -229,10 +306,24 @@ void StartVisionTask(void *argument)
 void StartCommandTask(void *argument)
 {
   /* USER CODE BEGIN StartCommandTask */
-  /* Infinite loop */
+  const uint16_t vel = 1000;
+  const uint8_t  acc = 200;
+
   for(;;)
   {
-  osDelay(1);
+    /* 等待 PIDTask 唤醒 */
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    /* 快照电机指令，防止 PIDTask 在 X/Y 之间覆盖 */
+    MotorCmd_t cmd = motor_cmd;
+    /* X 电机目标位置 */
+    Emm_V5_Pos_Control(MOTOR_X_ADDR, cmd.dir_x, vel, acc, cmd.clk_x, true, true);
+    osDelay(3);
+    /* Y 电机目标位置 */
+    Emm_V5_Pos_Control(MOTOR_Y_ADDR, cmd.dir_y, vel, acc, cmd.clk_y, true, true);
+    osDelay(3);
+    /* 广播同步触发 */
+    Emm_V5_Synchronous_motion(0);
+    osDelay(3);
   }
   /* USER CODE END StartCommandTask */
 }

@@ -21,16 +21,6 @@
 #include "usart.h"
 
 /* USER CODE BEGIN 0 */
-#include "cmsis_os.h"   /* osMutexAcquire / osMutexRelease */
-#include "vision.h"     /* CmdMutexHandle, VisionQueueHandle */
-
-/* USART2 TX DMA 完成回调 — 释放互斥锁，允许下一条指令发送 */
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART2)
-        osMutexRelease(CmdMutexHandle);
-}
-
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart1;
@@ -288,11 +278,10 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 
 /* USER CODE BEGIN 1 */
 
-/* USART DMA 非阻塞发送 — 两路电机共用 USART2，互斥锁保护 */
+/* USART DMA 发送 — 单任务调用，无需同步 */
 HAL_StatusTypeDef usart_SendCmd(UART_HandleTypeDef *huart, uint8_t *data, uint16_t len)
 {
-    osMutexAcquire(CmdMutexHandle, osWaitForever);  /* 等待 TX 空闲 */
-    return HAL_UART_Transmit_DMA(huart, data, len); /* 启动 DMA 发送，非阻塞返回 */
+    return HAL_UART_Transmit_DMA(huart, data, len);
 }
 
 /* USER CODE END 1 */
